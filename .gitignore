@@ -1,0 +1,196 @@
+# =============================================================================
+# PulsePay — Root .gitignore
+# Corporate-grade ignore rules for a Java/Spring Boot + Frontend monorepo
+# =============================================================================
+
+# =============================================================================
+# SECRETS & ENVIRONMENT — Never commit credentials
+# =============================================================================
+.env
+.env.*
+!.env.example
+*.env
+application-local.*
+application-secret.*
+application-secrets.*
+*-secrets.yml
+*-secrets.yaml
+secrets/
+vault/
+*.pem
+*.key
+*.p12
+*.jks
+*.pfx
+id_rsa
+id_rsa.pub
+*.cer
+*.crt
+
+# =============================================================================
+# JAVA / MAVEN
+# =============================================================================
+target/
+!**/src/main/**/target/
+!**/src/test/**/target/
+*.class
+*.jar
+!**/src/main/**/dependency-reduced-pom.xml
+*.war
+*.ear
+*.nar
+*.zip
+!**/.mvn/wrapper/maven-wrapper.jar
+hs_err_pid*
+replay_pid*
+
+# Maven wrapper cache
+.m2/
+
+# =============================================================================
+# LOGS
+# =============================================================================
+logs/
+*.log
+*.log.*
+*.log.gz
+spring.log
+
+# =============================================================================
+# NODE.JS / FRONTEND (React, Vue, Angular, Next.js, etc.)
+# =============================================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+.npm/
+.yarn/
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# Build output
+dist/
+build/
+out/
+.next/
+.nuxt/
+.output/
+.svelte-kit/
+
+# Cache
+.cache/
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+
+# Coverage
+coverage/
+
+# =============================================================================
+# DOCKER
+# =============================================================================
+docker-compose.override.yml
+docker-compose.local.yml
+.docker/
+
+# =============================================================================
+# IDE — IntelliJ IDEA
+# =============================================================================
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+# =============================================================================
+# IDE — Eclipse / STS
+# =============================================================================
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache
+.buildpath
+
+# =============================================================================
+# IDE — VS Code
+# =============================================================================
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+
+# =============================================================================
+# IDE — NetBeans
+# =============================================================================
+/nbproject/private/
+/nbbuild/
+/nbdist/
+/.nb-gradle/
+
+# =============================================================================
+# OS — Windows
+# =============================================================================
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# =============================================================================
+# OS — macOS
+# =============================================================================
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# =============================================================================
+# OS — Linux
+# =============================================================================
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# =============================================================================
+# TESTING & COVERAGE REPORTS
+# =============================================================================
+**/surefire-reports/
+**/failsafe-reports/
+jacoco.exec
+*.exec
+coverage.xml
+test-results/
+
+# =============================================================================
+# MISC
+# =============================================================================
+*.swp
+*.swo
+*.tmp
+*.bak
+*.orig
+.history/

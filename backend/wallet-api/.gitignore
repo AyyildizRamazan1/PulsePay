@@ -1,0 +1,119 @@
+# =============================================================================
+# wallet-api — Backend .gitignore
+# Spring Boot 4.1 / Java 21 / Maven
+# =============================================================================
+
+# =============================================================================
+# MAVEN BUILD OUTPUT
+# =============================================================================
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Compiled output
+*.class
+
+# Package files
+*.jar
+*.war
+*.ear
+*.nar
+
+# Maven wrapper cache
+.m2/
+
+# JVM crash dumps
+hs_err_pid*
+replay_pid*
+
+# =============================================================================
+# SPRING BOOT SECRETS — Never commit real configs
+# =============================================================================
+application-local.properties
+application-local.yml
+application-local.yaml
+application-dev.properties
+application-dev.yml
+application-staging.properties
+application-staging.yml
+application-prod.properties
+application-prod.yml
+application-secrets.*
+*-secrets.properties
+*-secrets.yml
+
+# =============================================================================
+# CREDENTIALS & KEYSTORES
+# =============================================================================
+*.jks
+*.p12
+*.pfx
+*.pem
+*.key
+*.cer
+*.crt
+
+# =============================================================================
+# LOGS
+# =============================================================================
+logs/
+*.log
+*.log.*
+spring.log
+
+# =============================================================================
+# TEST REPORTS & COVERAGE
+# =============================================================================
+**/surefire-reports/
+**/failsafe-reports/
+jacoco.exec
+*.exec
+
+# =============================================================================
+# IDE — IntelliJ IDEA
+# =============================================================================
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+# =============================================================================
+# IDE — Eclipse / STS
+# =============================================================================
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache
+.buildpath
+
+# =============================================================================
+# IDE — VS Code
+# =============================================================================
+.vscode/
+!.vscode/extensions.json
+
+# =============================================================================
+# IDE — NetBeans
+# =============================================================================
+/nbproject/private/
+/nbbuild/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# =============================================================================
+# OS
+# =============================================================================
+.DS_Store
+Thumbs.db
+[Dd]esktop.ini
+*~
