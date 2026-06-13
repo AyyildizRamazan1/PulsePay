@@ -1,0 +1,203 @@
+spring:
+  application:
+    name: wallet-api
+
+  # ============================================================
+  # DATABASE — PostgreSQL
+  # ============================================================
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:pulsepay}
+    username: ${DB_USERNAME:pulsepay_user}
+    password: ${DB_PASSWORD:changeme}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: WalletHikariPool
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+      max-lifetime: 1200000
+      leak-detection-threshold: 60000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: public
+        jdbc:
+          batch_size: 25
+          order_inserts: true
+          order_updates: true
+        format_sql: false
+
+  # ============================================================
+  # FLYWAY — Database Migrations
+  # ============================================================
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+
+  # ============================================================
+  # REDIS — Cache + Idempotency Store
+  # ============================================================
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 10
+          max-idle: 5
+          min-idle: 2
+          max-wait: 1000ms
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000
+
+  # ============================================================
+  # RABBITMQ — Async Transaction Processing
+  # ============================================================
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:changeme}
+    virtual-host: ${RABBITMQ_VHOST:/}
+    listener:
+      simple:
+        acknowledge-mode: manual
+        retry:
+          enabled: true
+          initial-interval: 1000ms
+          max-attempts: 3
+          multiplier: 2.0
+    template:
+      mandatory: true
+
+  # ============================================================
+  # VIRTUAL THREADS — Java 21 (10.000+ concurrent users)
+  # ============================================================
+  threads:
+    virtual:
+      enabled: true
+
+# ============================================================
+# SERVER
+# ============================================================
+server:
+  port: ${APP_PORT:8080}
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/plain
+    min-response-size: 1024
+  error:
+    include-message: never
+    include-stacktrace: never
+
+# ============================================================
+# ACTUATOR — Health, Metrics, Info
+# ============================================================
+management:
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: ${JAEGER_ENDPOINT:http://localhost:4318/v1/traces}
+
+# ============================================================
+# RESILIENCE4J — Circuit Breaker & Rate Limiter
+# ============================================================
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        slow-call-duration-threshold: 3s
+        slow-call-rate-threshold: 80
+    instances:
+      externalBankService:
+        base-config: default
+        wait-duration-in-open-state: 30s
+
+  ratelimiter:
+    configs:
+      default:
+        limit-for-period: 10
+        limit-refresh-period: 1s
+        timeout-duration: 0
+    instances:
+      transferApi:
+        base-config: default
+
+  retry:
+    configs:
+      default:
+        max-attempts: 3
+        wait-duration: 500ms
+    instances:
+      externalBankService:
+        base-config: default
+
+# ============================================================
+# OPENTELEMETRY — Distributed Tracing
+# ============================================================
+otel:
+  service:
+    name: ${OTEL_SERVICE_NAME:wallet-api}
+  exporter:
+    otlp:
+      endpoint: ${JAEGER_ENDPOINT:http://localhost:4318/v1/traces}
+
+# ============================================================
+# LOGGING
+# ============================================================
+logging:
+  level:
+    root: ${APP_LOG_LEVEL:INFO}
+    com.kurumsal.wallet_api: DEBUG
+    org.springframework.amqp: WARN
+    org.hibernate.SQL: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{traceId}/%X{spanId}] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/wallet-api.log
+
+# ============================================================
+# APPLICATION — Custom Properties
+# ============================================================
+app:
+  idempotency:
+    ttl-hours: 24
+  jwt:
+    secret: ${JWT_SECRET:changeme-use-a-256-bit-random-string}
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+  fraud-detection:
+    max-transfers-per-hour: 50
+    high-value-threshold: 1000000
+    new-account-days: 1

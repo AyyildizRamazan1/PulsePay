@@ -1,0 +1,136 @@
+services:
+
+  # ============================================================
+  # DATABASE — PostgreSQL 15
+  # ============================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: pulsepay-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-pulsepay}
+      POSTGRES_USER: ${DB_USERNAME:-pulsepay_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-pulsepay_user} -d ${DB_NAME:-pulsepay}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - pulsepay-net
+
+  # ============================================================
+  # CACHE — Redis 7
+  # ============================================================
+  redis:
+    image: redis:7-alpine
+    container_name: pulsepay-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:-changeme}
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 60 1
+      --loglevel warning
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-changeme}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - pulsepay-net
+
+  # ============================================================
+  # MESSAGE BROKER — RabbitMQ 3 (Management UI dahil)
+  # ============================================================
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: pulsepay-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-changeme}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-/}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "15672:15672"    # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    networks:
+      - pulsepay-net
+
+  # ============================================================
+  # DISTRIBUTED TRACING — Jaeger (All-in-One)
+  # ============================================================
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: pulsepay-jaeger
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"   # Jaeger UI
+      - "4318:4318"     # OTLP HTTP (OpenTelemetry)
+      - "4317:4317"     # OTLP gRPC
+    networks:
+      - pulsepay-net
+
+  # ============================================================
+  # DATABASE UI — pgAdmin 4 (Opsiyonel)
+  # ============================================================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pulsepay-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@pulsepay.local
+      PGADMIN_DEFAULT_PASSWORD: ${DB_PASSWORD:-changeme}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - tools
+    networks:
+      - pulsepay-net
+
+# ============================================================
+# VOLUMES
+# ============================================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+# ============================================================
+# NETWORKS
+# ============================================================
+networks:
+  pulsepay-net:
+    driver: bridge
