@@ -1,5 +1,6 @@
 package com.kurumsal.wallet_api.infrastructure.exception;
 
+import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,13 @@ public class GlobalExceptionHandler {
         log.warn("Application exception [{}]: {}", ex.getErrorCode(), ex.getMessage());
         return ResponseEntity.status(ex.getStatus())
                 .body(ErrorResponse.of(ex.getErrorCode(), ex.getMessage()));
+    }
+
+    @ExceptionHandler(RequestNotPermitted.class)
+    public ResponseEntity<ErrorResponse> handleRateLimited(RequestNotPermitted ex) {
+        log.warn("Rate limit exceeded: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(ErrorResponse.of("RATE_LIMIT_EXCEEDED", "Too many requests, please slow down"));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

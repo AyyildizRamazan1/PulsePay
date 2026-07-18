@@ -2,13 +2,18 @@ package com.kurumsal.wallet_api.wallet.service;
 
 import com.kurumsal.wallet_api.audit.domain.AuditStatus;
 import com.kurumsal.wallet_api.audit.service.AuditService;
+import com.kurumsal.wallet_api.infrastructure.exception.ExternalBankUnavailableException;
 import com.kurumsal.wallet_api.infrastructure.exception.InsufficientBalanceException;
 import com.kurumsal.wallet_api.infrastructure.exception.WalletNotFoundException;
+import com.kurumsal.wallet_api.infrastructure.external.ExternalBankService;
 import com.kurumsal.wallet_api.transaction.domain.Transaction;
 import com.kurumsal.wallet_api.transaction.domain.TransactionStatus;
 import com.kurumsal.wallet_api.transaction.domain.TransactionType;
 import com.kurumsal.wallet_api.transaction.dto.TransactionResponse;
+import com.kurumsal.wallet_api.transaction.event.TransactionEvent;
+import com.kurumsal.wallet_api.transaction.event.TransactionEventPublisher;
 import com.kurumsal.wallet_api.transaction.repository.TransactionRepository;
+import com.kurumsal.wallet_api.transaction.service.CompensationService;
 import com.kurumsal.wallet_api.transaction.service.IdempotencyService;
 import com.kurumsal.wallet_api.wallet.cache.WalletCacheService;
 import com.kurumsal.wallet_api.wallet.domain.Wallet;
@@ -33,6 +38,9 @@ public class WalletService {
     private final AuditService auditService;
     private final IdempotencyService idempotencyService;
     private final WalletCacheService walletCacheService;
+    private final ExternalBankService externalBankService;
+    private final CompensationService compensationService;
+    private final TransactionEventPublisher transactionEventPublisher;
 
     @Transactional(readOnly = true)
     public WalletResponse getBalance(Long walletId) {
@@ -78,10 +86,25 @@ public class WalletService {
 
         TransactionResponse response = TransactionResponse.from(tx);
         if (idempotencyKey != null) idempotencyService.save(idempotencyKey, response);
+
+        transactionEventPublisher.publish(new TransactionEvent(
+                tx.getId(), null, walletId, wallet.getUser().getId(), amount,
+                TransactionType.DEPOSIT, ipAddress, LocalDateTime.now()));
+
         return response;
     }
 
-    @Transactional
+    /**
+     * noRollbackFor: on external-settlement failure the wallet debit is compensated (credited
+     * back) and the transaction row is marked FAILED within this same transaction, then the
+     * exception is thrown to inform the caller. Those compensating writes must commit — not the
+     * default Spring behavior of rolling back the whole method on a RuntimeException — so they
+     * are excluded from rollback here. (The compensation itself must stay in *this* transaction
+     * rather than a REQUIRES_NEW one: a separate transaction trying to update the same wallet
+     * row would block behind the pessimistic lock this transaction is still holding, deadlocking
+     * against itself.)
+     */
+    @Transactional(noRollbackFor = ExternalBankUnavailableException.class)
     public TransactionResponse withdraw(Long walletId, BigDecimal amount,
                                         String idempotencyKey, String ipAddress) {
         if (idempotencyKey != null) {
@@ -114,11 +137,24 @@ public class WalletService {
                 .build();
         transactionRepository.save(tx);
 
+        try {
+            externalBankService.settleWithdrawal(walletId, amount);
+        } catch (ExternalBankUnavailableException e) {
+            compensationService.reverseWithdrawal(wallet, tx, amount, ipAddress,
+                    "External bank settlement failed — withdrawal reversed");
+            throw e;
+        }
+
         auditService.log(wallet, wallet.getUser().getId(), tx.getId(),
                 "WITHDRAW", amount, AuditStatus.SUCCESS, ipAddress, null);
 
         TransactionResponse response = TransactionResponse.from(tx);
         if (idempotencyKey != null) idempotencyService.save(idempotencyKey, response);
+
+        transactionEventPublisher.publish(new TransactionEvent(
+                tx.getId(), walletId, null, wallet.getUser().getId(), amount,
+                TransactionType.WITHDRAW, ipAddress, LocalDateTime.now()));
+
         return response;
     }
 }

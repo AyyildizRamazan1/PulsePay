@@ -2,6 +2,9 @@ package com.kurumsal.wallet_api.integration;
 
 import com.kurumsal.wallet_api.audit.service.AuditService;
 import com.kurumsal.wallet_api.infrastructure.exception.InsufficientBalanceException;
+import com.kurumsal.wallet_api.infrastructure.external.ExternalBankService;
+import com.kurumsal.wallet_api.transaction.event.TransactionEventPublisher;
+import com.kurumsal.wallet_api.transaction.service.CompensationService;
 import com.kurumsal.wallet_api.transaction.service.IdempotencyService;
 import com.kurumsal.wallet_api.user.domain.User;
 import com.kurumsal.wallet_api.user.repository.UserRepository;
@@ -46,16 +49,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Real-Postgres concurrency test for the pessimistic-lock code path in {@link WalletService}
  * (backed by {@code WalletRepository#findByIdWithPessimisticLock}). Loads a minimal, hand-picked
- * Spring context (datasource/JPA/Flyway + WalletService/AuditService only) instead of the full
- * application context, so the test never needs a live Redis/RabbitMQ broker — Rabbit/Redis/Cache
- * autoconfiguration is excluded and the two Redis-backed collaborators are mocked out.
+ * Spring context (datasource/JPA/Flyway + WalletService/AuditService/ExternalBankService/
+ * CompensationService) instead of the full application context, so the test never needs a live
+ * Redis/RabbitMQ broker — Rabbit/Redis/Cache autoconfiguration is excluded, the two Redis-backed
+ * collaborators and {@link TransactionEventPublisher} (Rabbit-backed) are mocked out, and the
+ * simulated external-bank failure rate is pinned to 0 so settlement never randomly fails.
  */
 @Testcontainers
 @SpringBootTest(
         classes = WalletIntegrationTest.TestConfig.class,
         properties = {
                 "spring.datasource.hikari.maximum-pool-size=60",
-                "spring.flyway.enabled=true"
+                "spring.flyway.enabled=true",
+                // Deterministic: the concurrency assertions below need every settlement to
+                // succeed on the first attempt, not survive by the grace of resilience4j retries.
+                "app.external-bank.failure-rate=0"
         }
 )
 class WalletIntegrationTest {
@@ -85,6 +93,8 @@ class WalletIntegrationTest {
     private WalletCacheService walletCacheService;
     @MockitoBean
     private IdempotencyService idempotencyService;
+    @MockitoBean
+    private TransactionEventPublisher transactionEventPublisher;
 
     private Long walletId;
 
@@ -196,7 +206,7 @@ class WalletIntegrationTest {
     })
     @EntityScan(basePackages = "com.kurumsal.wallet_api")
     @EnableJpaRepositories(basePackages = "com.kurumsal.wallet_api")
-    @Import({WalletService.class, AuditService.class})
+    @Import({WalletService.class, AuditService.class, ExternalBankService.class, CompensationService.class})
     static class TestConfig {
     }
 }

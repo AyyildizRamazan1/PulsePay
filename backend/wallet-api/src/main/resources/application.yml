@@ -123,9 +123,11 @@ management:
   tracing:
     sampling:
       probability: 1.0
-  otlp:
+  opentelemetry:
     tracing:
-      endpoint: ${JAEGER_ENDPOINT:http://localhost:4318/v1/traces}
+      export:
+        otlp:
+          endpoint: ${JAEGER_ENDPOINT:http://localhost:4318/v1/traces}
 
 # ============================================================
 # RESILIENCE4J — Circuit Breaker & Rate Limiter
@@ -165,16 +167,6 @@ resilience4j:
         base-config: default
 
 # ============================================================
-# OPENTELEMETRY — Distributed Tracing
-# ============================================================
-otel:
-  service:
-    name: ${OTEL_SERVICE_NAME:wallet-api}
-  exporter:
-    otlp:
-      endpoint: ${JAEGER_ENDPOINT:http://localhost:4318/v1/traces}
-
-# ============================================================
 # LOGGING
 # ============================================================
 logging:
@@ -201,3 +193,7 @@ app:
     max-transfers-per-hour: 50
     high-value-threshold: 1000000
     new-account-days: 1
+  external-bank:
+    # Simulated external settlement call (no real bank integration) — demonstrates the
+    # circuit breaker / retry / compensation pattern. 0.0 disables simulated failures.
+    failure-rate: ${EXTERNAL_BANK_FAILURE_RATE:0.15}

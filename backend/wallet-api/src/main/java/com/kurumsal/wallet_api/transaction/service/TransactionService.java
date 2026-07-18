@@ -9,10 +9,13 @@ import com.kurumsal.wallet_api.transaction.domain.TransactionStatus;
 import com.kurumsal.wallet_api.transaction.domain.TransactionType;
 import com.kurumsal.wallet_api.transaction.dto.TransactionResponse;
 import com.kurumsal.wallet_api.transaction.dto.TransferRequest;
+import com.kurumsal.wallet_api.transaction.event.TransactionEvent;
+import com.kurumsal.wallet_api.transaction.event.TransactionEventPublisher;
 import com.kurumsal.wallet_api.transaction.repository.TransactionRepository;
 import com.kurumsal.wallet_api.wallet.cache.WalletCacheService;
 import com.kurumsal.wallet_api.wallet.domain.Wallet;
 import com.kurumsal.wallet_api.wallet.repository.WalletRepository;
+import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -33,7 +36,9 @@ public class TransactionService {
     private final AuditService auditService;
     private final IdempotencyService idempotencyService;
     private final WalletCacheService walletCacheService;
+    private final TransactionEventPublisher transactionEventPublisher;
 
+    @RateLimiter(name = "transferApi")
     @Transactional
     public TransactionResponse transfer(Long fromWalletId, TransferRequest request,
                                         String idempotencyKey, String ipAddress) {
@@ -92,6 +97,11 @@ public class TransactionService {
 
         TransactionResponse response = TransactionResponse.from(tx);
         if (idempotencyKey != null) idempotencyService.save(idempotencyKey, response);
+
+        transactionEventPublisher.publish(new TransactionEvent(
+                tx.getId(), fromWalletId, toWalletId, fromWallet.getUser().getId(), request.amount(),
+                TransactionType.TRANSFER, ipAddress, LocalDateTime.now()));
+
         return response;
     }
 

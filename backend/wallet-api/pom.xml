@@ -123,13 +123,16 @@
         <!-- ================================================================ -->
         <!-- OBSERVABILITY — Distributed Tracing (OpenTelemetry + Jaeger)    -->
         <!-- ================================================================ -->
+        <!-- Boot 4's official starter — bundles the OTel API, the Micrometer
+             Tracing<->OTel bridge autoconfiguration, and OTLP exporters for
+             traces/metrics. The individual pieces (micrometer-tracing-bridge-otel,
+             opentelemetry-exporter-otlp, spring-boot-opentelemetry, ...) used to
+             be enough under Boot 3; under Boot 4 the piece that actually wires
+             the OTel bridge in (spring-boot-micrometer-tracing-opentelemetry)
+             only ships as part of this starter. -->
         <dependency>
-            <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-tracing-bridge-otel</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.opentelemetry</groupId>
-            <artifactId>opentelemetry-exporter-otlp</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-opentelemetry</artifactId>
         </dependency>
 
         <!-- ================================================================ -->
