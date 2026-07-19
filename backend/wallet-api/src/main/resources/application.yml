@@ -128,6 +128,15 @@ management:
       export:
         otlp:
           endpoint: ${JAEGER_ENDPOINT:http://localhost:4318/v1/traces}
+  # spring-boot-starter-opentelemetry also auto-enables an OTLP *metrics* push exporter
+  # (separate from tracing, gated by OnMetricsExportEnabledCondition). Jaeger only has an
+  # OTLP trace receiver, not a metrics one, so that push was failing with 404 every export
+  # interval. Metrics stay available via the already-exposed /actuator/prometheus pull
+  # endpoint — just disable the OTLP push specifically.
+  otlp:
+    metrics:
+      export:
+        enabled: false
 
 # ============================================================
 # RESILIENCE4J — Circuit Breaker & Rate Limiter
